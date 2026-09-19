@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Split larger UPI payments into scannable QR codes of ₹1,999 or less.">
+<title>UPI QR Payment Splitter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}"><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body><main class="page-shell">
+<header class="topbar"><a class="brand" href="/" aria-label="UPI QR Payment Splitter home"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span><span>UPI Splitter</span></a><span class="privacy-chip"><span class="status-dot" aria-hidden="true"></span>Nothing is stored</span></header>
+<section class="intro"><p class="eyebrow">Pay in simple steps</p><h1>One payment.<br><em>Multiple scans.</em></h1><p class="intro-copy">Split a larger UPI payment into quick, scannable QR codes capped at ₹1,999 each.</p></section>
+<section class="workspace" aria-label="Payment details and QR results">
+<div class="form-card"><div class="section-heading"><div><p class="step-label">01 <span>Payment details</span></p><h2>Who are you paying?</h2></div><span class="limit-badge">Up to ₹10,000</span></div>
+{% if errors %}<div class="error-box" role="alert"><span class="error-icon" aria-hidden="true">!</span><div><strong>Check your details</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div></div>{% endif %}
+<form method="post" id="payment-form">
+<label class="field"><span>Recipient name</span><input type="text" name="name" value="{{ form.name }}" placeholder="e.g. Arjun Mehta" autocomplete="name" required></label>
+<label class="field"><span>Recipient UPI ID</span><input type="text" name="upi_id" value="{{ form.upi_id }}" placeholder="e.g. arjun@okaxis" inputmode="email" pattern="[^@s]+@[^@s]+" autocomplete="off" spellcheck="false" required><small>Use the exact UPI ID they use on GPay, PhonePe, or another UPI app.</small></label>
+<label class="field amount-field"><span>Total amount</span><div class="input-with-prefix amount-input"><span class="prefix">₹</span><input type="number" name="amount" value="{{ form.amount }}" placeholder="0" min="0.01" max="10000" step="0.01" inputmode="decimal" required></div><small>Each QR code will be capped at ₹1,999.</small></label>
+<button class="primary-button" type="submit" id="submit-button"><span class="button-label">Generate QR codes</span><span class="button-arrow" aria-hidden="true">→</span><span class="button-loading" aria-hidden="true"><span class="spinner"></span>Preparing…</span></button></form>
+<div class="privacy-note"><span class="lock-icon" aria-hidden="true">⌁</span><span>Your details are used only for this request and are never saved.</span></div></div>
+<aside class="how-card"><div class="how-icon" aria-hidden="true"><span class="scan-corner top-left"></span><span class="scan-corner top-right"></span><span class="scan-corner bottom-left"></span><span class="scan-corner bottom-right"></span><span class="scan-grid"></span></div><p class="step-label">How it works</p><h2>Keep every scan under the limit.</h2><p>We break your amount into ₹1,999-or-less pieces. Scan each QR code one after another in any UPI app.</p><div class="example"><span>₹4,500 becomes</span><strong>₹1,999 + ₹1,999 + ₹502</strong></div></aside>
+</section>
+{% if qr_items %}<section class="results" aria-live="polite"><div class="results-heading"><div><p class="step-label">02 <span>Your payment QRs</span></p><h2>Ready to scan</h2></div><div class="total-pill"><span>Total</span><strong>₹{{ total|inr }}</strong></div></div>
+<div class="breakdown"><div class="breakdown-title"><span class="check-badge" aria-hidden="true">✓</span><strong>{{ qr_items|length }} QR code{% if qr_items|length != 1 %}s{% endif %} generated</strong></div><div class="breakdown-list">{% for item in qr_items %}<div class="breakdown-row"><span>QR {{ item.number }}</span><span class="line"></span><strong>₹{{ item.amount_label }}</strong></div>{% endfor %}</div></div>
+<div class="qr-grid">{% for item in qr_items %}<article class="qr-card"><div class="qr-card-top"><span class="qr-number">QR {{ "%02d"|format(item.number) }}</span><span class="scan-label">Scan to pay</span></div><div class="qr-image-wrap"><img src="{{ item.image }}" alt="QR code for ₹{{ item.amount_label }} payment to {{ form.name }}" width="240" height="240"></div><p class="prefilled-note"><span aria-hidden="true">✓</span>₹{{ item.amount_label }} is prefilled</p><div class="qr-amount">₹{{ item.amount_label }}</div><div class="upi-link-wrap"><code class="upi-link" id="upi-link-{{ item.number }}">{{ item.link }}</code><button class="copy-button" type="button" data-copy-target="upi-link-{{ item.number }}" aria-label="Copy UPI link for QR {{ item.number }}"><span aria-hidden="true">▣</span> Copy</button></div><p class="fallback-label">Scan, confirm the prefilled amount, and enter your UPI PIN. If scanning doesn't work, copy the UPI link above.</p></article>{% endfor %}</div>
+<div class="warning-box"><span class="warning-icon" aria-hidden="true">!</span><p>Use the recipient's exact UPI ID, such as <strong>name@bank</strong> or <strong>number@upi</strong>. This is the ID their GPay, PhonePe, or other UPI app recognizes.</p></div></section>{% endif %}
+<footer><span>UPI QR Payment Splitter</span><span>Works with GPay, PhonePe &amp; any UPI app</span></footer>
+</main><script>
+const form=document.getElementById("payment-form"),submitButton=document.getElementById("submit-button");
+if(form&&submitButton){form.addEventListener("submit",()=>{submitButton.classList.add("is-loading");submitButton.setAttribute("aria-busy","true");});}
+document.querySelectorAll("[data-copy-target]").forEach(button=>{button.addEventListener("click",async()=>{const target=document.getElementById(button.dataset.copyTarget);if(!target)return;try{await navigator.clipboard.writeText(target.textContent);button.innerHTML='<span aria-hidden="true">✓</span> Copied';button.classList.add("copied");setTimeout(()=>{button.innerHTML='<span aria-hidden="true">▣</span> Copy';button.classList.remove("copied");},1800);}catch{const selection=window.getSelection(),range=document.createRange();range.selectNodeContents(target);selection.removeAllRanges();selection.addRange(range);}});});
+</script></body></html>
